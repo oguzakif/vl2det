@@ -194,5 +194,3 @@ If you use this code or find VL2Lite helpful, please cite:
 
 This project is licensed under the [MIT License](LICENSE).
 Please see the [LICENSE](LICENSE) file for details.
-
-```  
