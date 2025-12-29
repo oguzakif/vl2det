@@ -140,6 +140,18 @@ python scripts/plot_tensorboard_scalars.py logs/train/runs/<run1> logs/train/run
   --legends run1 run2 --out-dir plots/tensorboard
 ```
 
+### Inference on images (save PNG + JSON)
+```bash
+python scripts/infer_detection.py /path/to/images \
+  --ckpt logs/train/runs/<run>/checkpoints/last.ckpt \
+  --arch fasterrcnn_mobilenet_v3_large_fpn \
+  --num-classes 5 \
+  --data-yaml /path/to/data.yaml \
+  --out-dir outputs/infer \
+  --score-threshold 0.3 \
+  --recursive
+```
+
 ---
 
 ## Hydra Notes
