@@ -1,0 +1,23 @@
+defaults:
+  - attributes: 0_CUB_200_2011
+
+data_name: ${data.attributes.name}
+_target_: src.data.kd_datamodule.KDDataModule
+train_dataset:
+  _target_ : src.data.components.kd_dataloader.KDDataset
+  data_name: ${data.data_name}
+  data_root: ${paths.data_dir}${data.data_name}${data.attributes.sub_dir}
+  attributes: ${data.attributes}
+  split: train
+
+test_dataset:
+  _target_ : src.data.components.kd_dataloader.KDDataset
+  data_name: ${data.data_name}
+  data_root: ${paths.data_dir}${data.data_name}${data.attributes.sub_dir}
+  attributes: ${data.attributes}
+  split: test
+
+
+batch_size: 512 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
+num_workers: 16
+pin_memory: False

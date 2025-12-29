@@ -1,0 +1,33 @@
+_target_: src.models.detection_kd_module.DetectionKDModule
+optimizer:
+  _target_: torch.optim.AdamW
+  _partial_: true
+  lr: 0.0001
+  weight_decay: 0.0
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.StepLR
+  _partial_: true
+  step_size: 30
+  gamma: 0.5
+
+use_teacher: false
+use_det_teacher: false
+
+net:
+  _target_: src.models.components.detection.DetectionTeacherStudent
+  teacher: null
+  data_attributes: ${data.attributes}
+  student:
+    arch: fasterrcnn_resnet50_fpn
+    add_background: true
+    weights: DEFAULT
+    weights_backbone: null
+    label_offset: ${data.label_offset}
+    image_size: null
+    box_format: null
+  use_teacher: false
+
+kd_criterion: null
+
+compile: false

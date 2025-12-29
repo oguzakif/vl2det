@@ -1,0 +1,17 @@
+name: OPIXray
+sub_dir: /
+data_yaml: data.yaml
+images_train: images/train
+images_val: images/val
+images_test: images/test
+labels_train: labels/train
+labels_val: labels/val
+labels_test: labels/test
+prompt_tmpl: "an X-ray image of {}"
+class_num: 5
+classes:
+  0: "Folding_Knife"
+  1: "Multi-tool_Knife"
+  2: "Scissor"
+  3: "Straight_Knife"
+  4: "Utility_Knife"
