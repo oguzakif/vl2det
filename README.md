@@ -25,35 +25,42 @@ ______________________________________________________________________
 
 ## Description
 
-This repository contains the **official implementation** of the paper:
-"VL2Lite: Task-Specific Knowledge Distillation from Large Vision-Language Models to Lightweight Networks".
-
-This repository provides a **PyTorch Lightning + Hydra** codebase for distilling knowledge from large Vision-Language Models (VLMs) (e.g., CLIP-like models) to smaller, resource-efficient neural networks. By leveraging multi-modal embeddings (visual & textual) from a **frozen** VLM, VL2Lite significantly boosts performance in fine-grained classification tasks without extra teacher fine-tuning overhead.
+This repository contains the **VL2Lite codebase** plus a detection-focused adaptation used in this project.
+It keeps the frozen VLM distillation recipe, but swaps the classifier for torchvision detectors and adds a YOLO-format
+detection pipeline with optional detector-teacher KD.
 
 ---
 
 ## Features
 
 - **Frozen VLM Teacher**: No teacher fine-tuning required  
-- **Condensation Layers**: Reduce dimensionality for both image and text embeddings  
-- **Multi-Loss**: Classification loss + Visual KD + Linguistic KD  
-- **Dynamic Weighting**: Gradually shifts from KD to classification emphasis  
+- **Detection Pipeline**: YOLO-format dataset to torchvision detectors with background label offset  
+- **VLM KD for Detection**: Pooled detector features aligned to VLM image/text embeddings  
+- **Optional Detector-Teacher KD**: Box/score matching distillation term  
 - **Configurable**: Hydra-based setup for custom data, model, or experiment scripts
 
 ---
 
+## Detection Adaptation (What Changed)
+
+- **Data**: `src/data/yolo_detection_dataset.py` converts YOLO labels to torchvision targets and can return
+  CLIP-normalized images for the VLM teacher; `data.label_offset=1` reserves background label 0.
+- **Model**: `src/models/components/detection.py` wraps torchvision detectors, pools backbone features for KD,
+  and aligns them with VLM image/text embeddings.
+- **Training**: `src/models/detection_kd_module.py` mixes detection loss with VLM KD and an optional detector-teacher KD term.
+- **Configs**: `configs/data/detection_yolo.yaml`, `configs/model/kd_detection.yaml`, and `configs/model/detection_teacher.yaml`.
+
 ## Installation
 
-1. **Clone project**:
+1. **Go to the project folder**:
    ```bash
-   git clone https://github.com/jsjangAI/VL2Lite
-   cd vl2lite
+   cd CMP722-ACV/VL2Lite
    ```
 
 2. *(Optional)* **Create conda environment**:
    ```bash
-   conda create -n vl2lite_env python=3.9
-   conda activate vl2lite_env
+   conda env create -f environment.yaml
+   conda activate myenv
    ```
 
 3. **Install PyTorch** per [official instructions](https://pytorch.org/get-started/).
@@ -63,15 +70,26 @@ This repository provides a **PyTorch Lightning + Hydra** codebase for distilling
    pip install -r requirements.txt
    ```
 
+5. *(Optional)* **Editable install** (enables `train_command` / `eval_command` entry points):
+   ```bash
+   pip install -e .
+   ```
+
 ---
 
 ## Data Setup
 
-If your dataset is in a different path, create a soft link:
+By default, datasets live under `data/kd_datasets/` (see `configs/paths/default.yaml`).
+For a custom YOLO dataset, either update `configs/data/attributes/detection_example.yaml` or override on the command line:
 ```bash
-ln -s ./data/kd_datasets /data/KD_datasets
+python src/train.py data=detection_yolo \
+  data.attributes.data_yaml=/absolute/path/to/data.yaml
 ```
-Update `configs/data/` if needed.
+You can also override folder names:
+```bash
+python src/train.py data=detection_yolo \
+  data.attributes.images_train=images/train data.attributes.labels_train=labels/train
+```
 
 ---
 
@@ -95,17 +113,34 @@ dataset_root/
 Label format (per line): `class_id x_center y_center width height` (normalized).
 By default, labels are offset by +1 for background (`data.label_offset=1`).
 
-Example run:
-```bash
-python src/train.py data=detection_yolo model=kd_detection callbacks=detection trainer=gpu
-```
 Override `data.attributes.*` or set `data.attributes.data_yaml` to use a YOLO YAML file.
 
-EfficientDet students are supported via the optional `effdet` + `timm` packages:
+### Train: VLM KD only (no detector teacher)
 ```bash
-pip install effdet timm
+python src/train.py data=detection_yolo model=kd_detection callbacks=detection trainer=gpu logger=tensorboard \
+  model.use_det_teacher=false
 ```
-Example (D0/D1):
+
+### Train: detector-teacher baseline (no KD)
+```bash
+python src/train.py data=detection_yolo model=detection_teacher callbacks=detection trainer=gpu logger=tensorboard
+```
+You can also run `bash scripts/train_detection_teacher.sh` for a simple teacher baseline.
+
+### Train: VLM KD + detector teacher
+```bash
+python src/train.py data=detection_yolo model=kd_detection callbacks=detection trainer=gpu logger=tensorboard \
+  model.use_det_teacher=true \
+  model.det_teacher.ckpt_path=logs/train/runs/<run>/checkpoints/epoch_XXX.ckpt
+```
+
+### Evaluate a checkpoint
+```bash
+python src/eval.py data=detection_yolo model=kd_detection ckpt_path=/absolute/path/to/ckpt.ckpt
+```
+
+### Optional: EfficientDet students
+EfficientDet requires `effdet` and `timm` (included in `requirements.txt`).
 ```bash
 python src/train.py data=detection_yolo model=kd_detection callbacks=detection trainer=gpu \
   model.net.student.arch=efficientdet_d0 model.net.student.image_size=512
@@ -115,46 +150,26 @@ python src/train.py data=detection_yolo model=kd_detection callbacks=detection t
   model.net.student.arch=efficientdet_d1 model.net.student.image_size=640
 ```
 
-Train a detection teacher first (no KD):
+### Plot TensorBoard scalars
 ```bash
-python src/train.py data=detection_yolo model=detection_teacher callbacks=detection trainer=gpu logger=tensorboard
+python scripts/plot_tensorboard_scalars.py logs/train/runs/<run1> logs/train/runs/<run2> \
+  --legends run1 run2 --out-dir plots/tensorboard
 ```
-Then distill with the teacher checkpoint:
-```bash
-python src/train.py data=detection_yolo model=kd_detection callbacks=detection trainer=gpu logger=tensorboard \
-  model.det_teacher.ckpt_path=logs/train/runs/<run>/checkpoints/epoch_XXX.ckpt
-```
-You can also run `bash scripts/train_detection_teacher.sh` for a simple teacher baseline.
 
 ---
 
-## How to Run
+## Hydra Notes
 
 We use [PyTorch Lightning](https://www.pytorchlightning.ai/) for training loops and [Hydra](https://hydra.cc/) for configuration.
-
-### Basic Commands
-
-- **Train on CPU**:
-  ```bash
-  python src/train.py trainer=cpu
-  ```
-
-- **Train on GPU**:
-  ```bash
-  python src/train.py trainer=gpu
-  ```
-
-### Experiment Configs
-
+You can override any config from the CLI, for example:
+```bash
+python src/train.py data=detection_yolo model=kd_detection trainer=gpu \
+  data.batch_size=16 trainer.max_epochs=50
+```
 Pick a config from `configs/experiment/`:
 ```bash
 python src/train.py experiment=experiment_name
 ```
-and you can override any parameter:
-```bash
-python src/train.py trainer.max_epochs=20 data.batch_size=64
-```
-*(See `src/train.sh` for an example script.)*
 
 ---
 
