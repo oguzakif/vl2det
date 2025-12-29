@@ -151,7 +151,7 @@ python scripts/infer_detection.py /path/to/images \
   --score-threshold 0.3 \
   --recursive
 ```
-
+Default output directory: `outputs/infer_<timestamp>`. Use `--out-dir` to override.
 ---
 
 ## Hydra Notes

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple
 
@@ -40,7 +41,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--ckpt", required=True, help="Lightning checkpoint path.")
     parser.add_argument("--arch", required=True, help="Detection arch (e.g., fasterrcnn_mobilenet_v3_large_fpn).")
     parser.add_argument("--num-classes", type=int, required=True, help="Number of foreground classes.")
-    parser.add_argument("--out-dir", required=True, help="Output directory.")
+    parser.add_argument("--out-dir", default=None, help="Output directory (default: outputs/infer_<timestamp>).")
     parser.add_argument("--device", default=None, help="Device (cuda, cpu, or cuda:0).")
     parser.add_argument("--score-threshold", type=float, default=0.3, help="Score threshold.")
     parser.add_argument("--topk", type=int, default=0, help="Keep top-k detections per image (0 disables).")
@@ -178,7 +179,11 @@ def _prepare_detections(
 def main() -> int:
     args = _parse_args()
     input_path = Path(args.input)
-    out_dir = Path(args.out_dir)
+    if args.out_dir:
+        out_dir = Path(args.out_dir)
+    else:
+        stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        out_dir = Path("outputs") / f"infer_{stamp}"
     image_out_dir = out_dir / "images"
     json_out_dir = out_dir / "json"
     image_out_dir.mkdir(parents=True, exist_ok=True)
