@@ -75,6 +75,18 @@ python src/train.py data=detection_yolo \
   data.attributes.images_train=images/train data.attributes.labels_train=labels/train
 ```
 
+### OPIXray conversion
+
+If you have the raw OPIXray release (train/test folders with `*_annotation` and `*_image`), convert it to YOLO format:
+```bash
+python scripts/prepare_opixray_yolo.py \
+  --data-root data/kd_datasets/OPIXray_raw \
+  --output-root data/kd_datasets/OPIXray
+```
+You can also pass a zip archive with `--zip path/to/opixray.zip`.
+
+You can download OPIXray from the link https://github.com/OPIXray-author/OPIXray.
+
 ---
 
 ## Detection (YOLO)
